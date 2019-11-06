@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html"
 	"io"
 	"log"
 	"net/http"
@@ -17,17 +16,12 @@ func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	//	http.NotFound(w, r)
 	//	return
 	//}
-	contentType := r.Header.Get("Content-type")
+	//contentType := r.Header.Get("Content-type")
 
-	fmt.Fprintf(w, "ping: %q", html.EscapeString(r.URL.Path))
 
 	file, header, err := r.FormFile("file")
 
-	if contentType != "multipart/form-data"{
-		log.Println("[-] Error in r.FormFile ", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "{'error': %s}", err)
-	} else if err != nil {
+	if err != nil {
 		log.Println("[-] Error in r.FormFile ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "{'error': %s}", err)
@@ -54,13 +48,19 @@ func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	log.Println("[+] File uploaded successfully: " +UplPrefix, header.Filename)
 }
 
+func passPath()  {
+	
+}
+
 func run(){
-	http.HandleFunc("/", uploadVideo)
-	go http.ListenAndServe(":15000", nil)
+
 }
 
 
 func main() {
 	_ = os.Mkdir("uploaded", os.ModePerm)
-	run()
+	//run()
+	http.HandleFunc("/", uploadVideo)
+	 http.ListenAndServe(":15000", nil)
+	//go http.ListenAndServe(":15000", nil)
 }
