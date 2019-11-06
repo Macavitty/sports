@@ -48,19 +48,16 @@ func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	log.Println("[+] File uploaded successfully: " +UplPrefix, header.Filename)
 }
 
-func passPath()  {
-	
-}
 
 func run(){
+	http.HandleFunc("/", uploadVideo)
+	http.ListenAndServe(":15000", nil)
+	//go http.ListenAndServe(":15000", nil)
 
 }
 
 
 func main() {
 	_ = os.Mkdir("uploaded", os.ModePerm)
-	//run()
-	http.HandleFunc("/", uploadVideo)
-	 http.ListenAndServe(":15000", nil)
-	//go http.ListenAndServe(":15000", nil)
+	run()
 }
