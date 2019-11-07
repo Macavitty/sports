@@ -1,0 +1,14 @@
+syntax = “proto3”;
+package main;
+
+service ServTmp {
+    rpc Func (Video) returns (Result) {}
+}
+
+message NetRequest {
+    bytes Content = 1;
+}
+
+message NetResponse {
+    float percent = 1;
+}
