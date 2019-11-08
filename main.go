@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,9 +17,68 @@ import (
 
 const UplPrefix = "upl-"
 const noPermsError = "[-] Unable to create the file for writing. Check your write access privilege."
+const pythonUrl = "http://localhost:5000/"
 
-func getResult() string {
+func blackMagic() float64{
+	return 42.73
+}
+
+func getResult(filePath string, fileName string) float64 {
+	log.Println("[*] Trying to post " +  filePath + " video to python")
 	// pass video to python
+	bodyBuf := &bytes.Buffer{}
+	bodyWriter := multipart.NewWriter(bodyBuf)
+
+	fileWriter, err := bodyWriter.CreateFormFile("file", fileName) // client_video
+	if err != nil {
+		log.Println("[-] Error posting to python:")
+		log.Println(err)
+		return -1
+	}
+	log.Println("[*] Created form file")
+
+	// open file handle
+	fileHandler, err := os.Open(filePath)
+	if err != nil {
+		log.Println("[-] Error posting to python:")
+		log.Println(err)
+		return -1
+	}
+	defer fileHandler.Close()
+	log.Println("[*] Created file handler")
+
+	_, err = io.Copy(fileWriter, fileHandler)
+	if err != nil {
+		log.Println("[-] Error posting to python:")
+		log.Println(err)
+		return -1
+	}
+	log.Println("[*] Copied to file writer")
+
+	contentType := bodyWriter.FormDataContentType()
+	_ = bodyWriter.Close()
+	response, err := http.Post(pythonUrl, contentType, bodyBuf)
+	if err != nil {
+		log.Println("[-] Error posting to python:")
+		log.Println(err)
+		return -1
+	}
+	defer response.Body.Close()
+	log.Println("[*] Posted, getting python-server response...")
+
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Println("[-] Error posting to python:")
+		log.Println(err)
+		return -1
+	}
+	log.Println(response.Status)
+	log.Println("Body: " + string(responseBody))
+
+	// get json? with? vectors? from response
+	// and pass it to blackMagic
+	var percent = blackMagic()
+	return percent
 
 	/*
 		adress := "localhost:66666"
@@ -30,10 +92,6 @@ func getResult() string {
 		message := &pb.NetRequest{Query: }
 		response, err := client.Func()
 	*/
-
-	var percentFromPython = 42.73
-	var percent = strconv.FormatFloat(percentFromPython, 'f', 2, 64)
-	return percent
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +185,8 @@ func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientVideo.Close()
 
-	out, err := os.Create("uploaded/" + UplPrefix + header.Filename)
+	uploadedVideoPath := "uploaded/" + UplPrefix + header.Filename
+	out, err := os.Create(uploadedVideoPath)
 	if err != nil {
 		log.Println(noPermsError, err)
 		_, _ = fmt.Fprintf(w, "%s"+noPermsError, err)
@@ -145,7 +204,14 @@ func uploadVideo(w http.ResponseWriter, r *http.Request) {
 	log.Println("[+] File uploaded successfully: " + UplPrefix + header.Filename)
 
 	// return user result
-	w.Header().Set("UserResult", getResult())
+	result := getResult(uploadedVideoPath, header.Filename)
+	if result == -1{
+		log.Println("[-] Error: the result is -1.")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	var resultStr = strconv.FormatFloat(result, 'f', 2, 64)
+	w.Header().Set("UserResult", resultStr)
 
 }
 
@@ -153,7 +219,6 @@ func run() {
 	http.HandleFunc("/", requestHandler)
 	_ = http.ListenAndServe(":15000", nil)
 	//go http.ListenAndServe(":15000", nil)
-
 }
 
 func main() {
